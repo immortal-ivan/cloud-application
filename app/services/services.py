@@ -48,3 +48,10 @@ def delete_service(service_id: int):
 
 def count_services():
     return len(services_data)
+
+def get_services_by_status(status: str):
+    return [
+        service
+        for service in services_data
+        if service["status"] == status
+    ]
