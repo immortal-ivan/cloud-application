@@ -1,0 +1,13 @@
+.venv/
+.venv-check/
+__pycache__/
+*.py[cod]
+.git/
+.gitignore
+.env
+secrets/
+certs/*.pem
+storage/
+docs/
+*.log
+.pytest_cache/
