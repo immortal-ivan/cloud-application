@@ -1,0 +1,19 @@
+# Виртуальные окружения
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Локальная конфигурация и секреты (в Git не попадают)
+.env
+secrets/*
+!secrets/.gitkeep
+certs/*.pem
+storage/*
+!storage/.gitkeep
+
+# Прочее
+*.log
+*.db
