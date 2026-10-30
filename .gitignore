@@ -17,3 +17,5 @@ storage/*
 # Прочее
 *.log
 *.db
+
+.venv-check/
