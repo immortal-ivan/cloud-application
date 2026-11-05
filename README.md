@@ -37,3 +37,13 @@
 - `run.py` - запуск (HTTPS, если есть `certs/localhost.pem`)
 - `scripts/` - начальные данные, проверка, подготовка Windows
 - `.env`, `secrets/`, `certs/*.pem`, `storage/` - локальные данные, в Git не попадают
+
+## Docker (ЛР №26–30)
+
+- `Dockerfile` - образ приложения (`docker build -t cloud-application:0.3 .`)
+- `compose.yaml` - система `app` + `db` (PostgreSQL 18) + `migrate` + `notification`:
+  `docker compose up -d`, затем `http://127.0.0.1:8080/docs`
+- `POST /integration/notifications` - вызов внутреннего Notification Service
+  (тайм-аут, retry, ответы 502/503/504)
+- `docs/container_runtime.md`, `docs/compose.md` - команды лабораторных работ
+- `reports/` - отчёты по лабораторным работам №26–30
