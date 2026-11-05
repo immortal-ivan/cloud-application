@@ -3,6 +3,7 @@ from fastapi import FastAPI
 
 from app.config import settings
 from app.routers import auth, files, services, status, users
+from app.routers.integration import router as integration_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -15,3 +16,4 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(services.router)
 app.include_router(files.router)
+app.include_router(integration_router)

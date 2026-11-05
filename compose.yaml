@@ -56,6 +56,7 @@ services:
       DB_PORT: 5432
       DB_NAME: cloud_application
       DB_USER: postgres
+      NOTIFICATION_SERVICE_URL: http://notification:9000
     ports:
       - "127.0.0.1:8080:8000"
     secrets:
@@ -66,6 +67,22 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      notification:
+        condition: service_started
+    networks:
+      - cloud-network
+
+  notification:
+    image: cloud-application:0.2
+    command:
+      - python
+      - -m
+      - uvicorn
+      - app.notification_service.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "9000"
     networks:
       - cloud-network
 

@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     host: str = Field(default="127.0.0.1", validation_alias=AliasChoices("app_host", "host"))
     port: int = Field(default=8443, validation_alias=AliasChoices("app_port", "port"))
 
+    # Notification Service (ЛР №29). В Docker Compose: http://notification:9000
+    notification_service_url: str = "http://127.0.0.1:9000"
+
     # HTTPS
     https_enabled: bool = True
     ssl_certfile: Path = BASE_DIR / "certs" / "localhost.pem"

@@ -14,6 +14,7 @@ Python: 3.13.16
 - pydantic-settings - конфигурация
 - python-multipart - загрузка файлов
 - pwdlib - работа с хешами паролей
+- httpx - асинхронный HTTP-клиент для вызова Notification Service (ЛР №29)
 
 ## Файлы зависимостей
 
