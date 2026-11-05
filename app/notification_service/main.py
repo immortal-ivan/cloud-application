@@ -15,6 +15,9 @@ app = FastAPI(title="Notification Service", version="1.0.0")
 class NotificationCreate(BaseModel):
     recipient: str = Field(..., min_length=3, max_length=100)
     message: str = Field(..., min_length=1, max_length=500)
+    # Ключ идемпотентности (доп. задание ЛР №30): повтор с тем же request_id
+    # возвращает ранее созданное уведомление, а не создаёт новое.
+    request_id: str | None = Field(default=None, max_length=64)
 
 
 class NotificationResponse(BaseModel):
@@ -25,6 +28,7 @@ class NotificationResponse(BaseModel):
 
 
 notifications: list[dict] = []
+by_request_id: dict[str, dict] = {}
 
 
 @app.get("/status", summary="Проверить состояние сервиса")
@@ -39,6 +43,8 @@ def status():
     summary="Принять уведомление",
 )
 def create_notification(notification: NotificationCreate):
+    if notification.request_id and notification.request_id in by_request_id:
+        return by_request_id[notification.request_id]
     item = {
         "id": len(notifications) + 1,
         "recipient": notification.recipient,
@@ -46,6 +52,8 @@ def create_notification(notification: NotificationCreate):
         "status": "accepted",
     }
     notifications.append(item)
+    if notification.request_id:
+        by_request_id[notification.request_id] = item
     return item
 
 
@@ -68,3 +76,9 @@ def get_notification(notification_id: int):
         if item["id"] == notification_id:
             return item
     raise HTTPException(status_code=404, detail="Notification not found")
+
+
+@app.get("/test/error/{status_code}", summary="Сформировать тестовую ошибку")
+def test_error(status_code: int):
+    """Учебный endpoint ЛР №30 для исследования HTTPStatusError."""
+    raise HTTPException(status_code=status_code, detail="Test service error")

@@ -46,6 +46,10 @@ class Settings(BaseSettings):
 
     # Notification Service (ЛР №29). В Docker Compose: http://notification:9000
     notification_service_url: str = "http://127.0.0.1:9000"
+    # Устойчивость вызова (ЛР №30): тайм-аут одной попытки, число попыток, начальная задержка
+    notification_timeout_seconds: float = 2.0
+    notification_max_attempts: int = 3
+    notification_retry_delay_seconds: float = 0.5
 
     # HTTPS
     https_enabled: bool = True
