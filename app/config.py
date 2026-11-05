@@ -6,7 +6,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
@@ -39,12 +39,22 @@ class Settings(BaseSettings):
     storage_dir: Path = BASE_DIR / "storage"
     max_upload_mb: int = 5
 
+    # Адрес прослушивания. В контейнере задаётся APP_HOST=0.0.0.0 и APP_PORT=8000;
+    # прежние имена HOST/PORT по-прежнему поддерживаются.
+    host: str = Field(default="127.0.0.1", validation_alias=AliasChoices("app_host", "host"))
+    port: int = Field(default=8443, validation_alias=AliasChoices("app_port", "port"))
+
     # HTTPS
-    host: str = "127.0.0.1"
-    port: int = 8443
     https_enabled: bool = True
     ssl_certfile: Path = BASE_DIR / "certs" / "localhost.pem"
     ssl_keyfile: Path = BASE_DIR / "certs" / "localhost-key.pem"
+
+    @model_validator(mode="after")
+    def _require_secrets(self) -> "Settings":
+        """Без обязательного секрета приложение не запускается (слабых значений по умолчанию нет)."""
+        if not self.database_url and not self.db_password:
+            raise ValueError("Не задан секрет db_password (файл secrets/db_password)")
+        return self
 
     @property
     def sqlalchemy_url_str(self) -> str:
