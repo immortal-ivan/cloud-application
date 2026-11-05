@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: cloud_application
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloud_application"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - cloud-network
+
+  migrate:
+    image: cloud-application:0.2
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ""
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cloud_application
+      DB_USER: postgres
+      HTTPS_ENABLED: "false"
+    secrets:
+      - source: db_password
+        target: /app/secrets/db_password
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && python -m scripts.seed
+    networks:
+      - cloud-network
+
+  app:
+    image: cloud-application:0.2
+    env_file:
+      - .env
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      HTTPS_ENABLED: "false"
+      DATABASE_URL: ""
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cloud_application
+      DB_USER: postgres
+    ports:
+      - "127.0.0.1:8080:8000"
+    secrets:
+      - source: db_password
+        target: /app/secrets/db_password
+    volumes:
+      - app_storage:/app/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - cloud-network
+
+volumes:
+  postgres_data:
+  app_storage:
+
+networks:
+  cloud-network:
+    driver: bridge
+
+secrets:
+  db_password:
+    file: ./secrets/db_password
