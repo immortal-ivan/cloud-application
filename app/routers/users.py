@@ -2,25 +2,25 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.deps import require_permission
-from app.models import Role, User
+from app.data.database import get_db
+from app.security import require_permission
+from app.data.models import Role, User
 from app.routers.auth import user_out
 from app.schemas import UserCreate, UserOut
-from app.security import hash_password
+from app.crypto import hash_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("", response_model=list[UserOut])
-def list_users(_: User = Depends(require_permission("users:read")), db: Session = Depends(get_db)):
+def list_users(_: User = Depends(require_permission("users.manage")), db: Session = Depends(get_db)):
     return [user_out(u) for u in db.scalars(select(User).order_by(User.id))]
 
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def create_user(
     data: UserCreate,
-    _: User = Depends(require_permission("users:write")),
+    _: User = Depends(require_permission("users.manage")),
     db: Session = Depends(get_db),
 ):
     role = db.scalar(select(Role).where(Role.name == data.role))

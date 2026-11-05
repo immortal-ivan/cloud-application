@@ -9,29 +9,42 @@ import os
 
 from sqlalchemy import select
 
-from app.database import SessionLocal
-from app.models import Permission, Role, Service, User
-from app.security import hash_password
+from app.data.database import SessionLocal
+from app.data.models import Permission, Role, Service, ServiceType, User
+from app.crypto import hash_password
 
 PERMISSIONS = {
-    "services:read": "Просмотр каталога услуг",
-    "services:write": "Создание, изменение и удаление услуг",
-    "files:read": "Просмотр своих файлов",
-    "files:write": "Загрузка файлов",
-    "files:read_all": "Просмотр файлов всех пользователей",
-    "users:read": "Просмотр списка пользователей",
-    "users:write": "Создание пользователей",
+    "services.read": "Просмотр каталога сервисов",
+    "services.write": "Создание, изменение и удаление сервисов",
+    "objects.read": "Просмотр и скачивание объектов хранилища",
+    "objects.write": "Загрузка и удаление объектов хранилища",
+    "files.read": "Просмотр своих файлов",
+    "files.write": "Загрузка файлов",
+    "files.read_all": "Просмотр файлов всех пользователей",
+    "users.manage": "Просмотр и создание пользователей",
+    "roles.manage": "Управление ролями пользователей",
 }
 
 ROLES = {
-    "admin": list(PERMISSIONS),
-    "user": ["services:read", "files:read", "files:write"],
+    "viewer": ["services.read", "objects.read", "files.read", "files.write"],
+    "operator": [
+        "services.read", "services.write", "objects.read", "objects.write", "files.read", "files.write",
+    ],
+    "administrator": list(PERMISSIONS),
+    # Дополнительная роль из ЛР №20: работает без изменения кода защищаемых маршрутов
+    "content_manager": ["objects.read", "objects.write", "services.read"],
 }
 
+SERVICE_TYPES = [
+    ("application", "Прикладной сервис"),
+    ("database", "Сервис базы данных"),
+    ("monitoring", "Сервис мониторинга"),
+]
+
 SERVICES = [
-    ("Виртуальный сервер", "Облачная виртуальная машина", "active"),
-    ("Хранилище файлов", "Объектное хранилище для файлов пользователей", "active"),
-    ("Резервное копирование", "Ежедневные копии баз данных", "disabled"),
+    ("Web Service", "application", "Веб-приложение", "running"),
+    ("Database Service", "database", "Сервер PostgreSQL", "running"),
+    ("Monitoring Service", "monitoring", "Сбор метрик", "running"),
 ]
 
 
@@ -60,15 +73,26 @@ def main() -> None:
         db.flush()
 
         for username, email, password, role in [
-            ("admin", "admin@example.com", admin_password, "admin"),
-            ("student", "student@example.com", user_password, "user"),
+            ("admin", "admin@example.com", admin_password, "administrator"),
+            ("student01", "student01@example.com", user_password, "viewer"),
+            ("student02", "student02@example.com", user_password, "operator"),
+            ("student03", "student03@example.com", user_password, "administrator"),
         ]:
             if db.scalar(select(User).where(User.username == username)) is None:
                 db.add(User(username=username, email=email, password_hash=hash_password(password), role_id=roles[role].id))
 
-        for name, description, status in SERVICES:
+        types = {}
+        for name, description in SERVICE_TYPES:
+            st = db.scalar(select(ServiceType).where(ServiceType.name == name))
+            if st is None:
+                st = ServiceType(name=name, description=description)
+                db.add(st)
+            types[name] = st
+        db.flush()
+
+        for name, type_name, description, status in SERVICES:
             if db.scalar(select(Service).where(Service.name == name)) is None:
-                db.add(Service(name=name, description=description, status=status))
+                db.add(Service(name=name, type_id=types[type_name].id, description=description, status=status))
 
         db.commit()
     print("Начальные данные загружены.")

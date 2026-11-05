@@ -1,71 +1,123 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.deps import require_permission
-from app.models import Service, User
-from app.schemas import ServiceIn, ServiceOut
+from app.data.database import get_db
+from app.data.models import User
+from app.schemas.services import ServiceCreate, ServiceOut
+from app.security import require_permission
+from app.services import services as service_layer
 
-router = APIRouter(prefix="/services", tags=["services"])
+router = APIRouter(prefix="/services", tags=["Services"])
 
-
-def get_or_404(db: Session, service_id: int) -> Service:
-    service = db.get(Service, service_id)
-    if service is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Услуга не найдена")
-    return service
-
-
-@router.get("", response_model=list[ServiceOut])
-def list_services(_: User = Depends(require_permission("services:read")), db: Session = Depends(get_db)):
-    return db.scalars(select(Service).order_by(Service.id)).all()
+ServiceId = Annotated[int, Path(description="Уникальный идентификатор сервиса", gt=0, examples=[1])]
+NOT_FOUND = {404: {"description": "Сервис не найден"}}
+AUTH_ERRORS = {
+    401: {"description": "Токен не передан или недействителен"},
+    403: {"description": "Недостаточно прав (нужно разрешение services.read / services.write)"},
+}
 
 
-@router.get("/{service_id}", response_model=ServiceOut)
+@router.get(
+    "",
+    response_model=list[ServiceOut],
+    summary="Получить список сервисов",
+    description=(
+        "Возвращает все облачные сервисы. Необязательный параметр `status` "
+        "оставляет только сервисы в указанном состоянии. Требуется разрешение `services.read`."
+    ),
+    responses=AUTH_ERRORS,
+)
+def read_services(
+    status_filter: Annotated[
+        str | None,
+        Query(alias="status", pattern="^(running|maintenance|stopped)$", description="Фильтр по состоянию"),
+    ] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("services.read")),
+):
+    if status_filter:
+        return service_layer.get_services_by_status(db, status_filter)
+    return service_layer.get_all_services(db)
+
+
+@router.get(
+    "/{service_id}",
+    response_model=ServiceOut,
+    summary="Получить сервис по идентификатору",
+    description="Возвращает сведения об одном облачном сервисе. Идентификатор передаётся в адресе запроса.",
+    responses={**NOT_FOUND, **AUTH_ERRORS},
+)
 def read_service(
-    service_id: int,
-    _: User = Depends(require_permission("services:read")),
+    service_id: ServiceId,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("services.read")),
 ):
-    return get_or_404(db, service_id)
+    found = service_layer.get_service_by_id(db, service_id)
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Service not found")
+    return found
 
 
-@router.post("", response_model=ServiceOut, status_code=status.HTTP_201_CREATED)
-def create_service(
-    data: ServiceIn,
-    _: User = Depends(require_permission("services:write")),
+@router.post(
+    "",
+    response_model=ServiceOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Создать новый сервис",
+    description="Создаёт новый облачный сервис на основе переданных данных. Требуется `services.write`.",
+    responses={
+        400: {"description": "Указанный тип сервиса не найден"},
+        409: {"description": "Сервис с таким названием уже существует"},
+        **AUTH_ERRORS,
+    },
+)
+def create_service_endpoint(
+    service: ServiceCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("services.write")),
 ):
-    if db.scalar(select(Service).where(Service.name == data.name)):
-        raise HTTPException(status.HTTP_409_CONFLICT, "Услуга с таким названием уже есть")
-    service = Service(**data.model_dump())
-    db.add(service)
-    db.commit()
-    db.refresh(service)
-    return service
+    if service_layer.name_is_taken(db, service.name):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Service name already exists")
+    created = service_layer.create_service(db, service)
+    if created is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Service type not found")
+    return created
 
 
-@router.put("/{service_id}", response_model=ServiceOut)
-def update_service(
-    service_id: int,
-    data: ServiceIn,
-    _: User = Depends(require_permission("services:write")),
+@router.put(
+    "/{service_id}",
+    response_model=ServiceOut,
+    summary="Изменить сервис",
+    description="Полностью заменяет данные существующего сервиса. Требуется `services.write`.",
+    responses={400: {"description": "Указанный тип сервиса не найден"}, **NOT_FOUND, **AUTH_ERRORS},
+)
+def update_service_endpoint(
+    service_id: ServiceId,
+    service: ServiceCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("services.write")),
 ):
-    service = get_or_404(db, service_id)
-    for key, value in data.model_dump().items():
-        setattr(service, key, value)
-    db.commit()
-    db.refresh(service)
-    return service
+    if service_layer.get_service_by_id(db, service_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Service not found")
+    if service_layer.get_service_type(db, service.type) is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Service type not found")
+    if service_layer.name_is_taken(db, service.name, except_id=service_id):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Service name already exists")
+    return service_layer.update_service(db, service_id, service)
 
 
-@router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_service(
-    service_id: int,
-    _: User = Depends(require_permission("services:write")),
+@router.delete(
+    "/{service_id}",
+    summary="Удалить сервис",
+    description="Удаляет сервис с указанным идентификатором. Требуется `services.write`.",
+    responses={**NOT_FOUND, **AUTH_ERRORS},
+)
+def delete_service_endpoint(
+    service_id: ServiceId,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission("services.write")),
 ):
-    db.delete(get_or_404(db, service_id))
-    db.commit()
+    if not service_layer.delete_service(db, service_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Service not found")
+    return {"message": "Service deleted", "id": service_id}

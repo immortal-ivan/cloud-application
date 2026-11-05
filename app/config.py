@@ -12,6 +12,10 @@ from sqlalchemy.engine import URL
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Основные параметры приложения (ЛР №2): название и версия вынесены из main.py
+APP_NAME = "Cloud Application"
+APP_VERSION = "1.0"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -20,8 +24,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "Cloud Application"
-    app_version: str = "0.1.0"
+    app_name: str = APP_NAME
+    app_version: str = APP_VERSION
 
     # База данных PostgreSQL. Пароль берётся из secrets/db_password.
     db_host: str = "localhost"
@@ -38,6 +42,9 @@ class Settings(BaseSettings):
     # Файловое хранилище
     storage_dir: Path = BASE_DIR / "storage"
     max_upload_mb: int = 5
+    # Объектное хранилище (ЛР №18): каталог физических объектов и предельный размер файла
+    storage_path: str = "storage/objects"
+    max_upload_size: int = 5 * 1024 * 1024
 
     # Адрес прослушивания. В контейнере задаётся APP_HOST=0.0.0.0 и APP_PORT=8000;
     # прежние имена HOST/PORT по-прежнему поддерживаются.

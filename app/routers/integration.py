@@ -5,7 +5,7 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.deps import require_permission
+from app.security import require_permission
 from app.integrations.notification_client import (
     NotificationServiceBadResponse,
     NotificationServiceTimeout,
@@ -13,7 +13,7 @@ from app.integrations.notification_client import (
     get_notification,
     send_notification,
 )
-from app.models import User
+from app.data.models import User
 from app.schemas.integration import NotificationSendRequest, NotificationSendResponse
 
 router = APIRouter(prefix="/integration", tags=["Integration"])
@@ -38,7 +38,7 @@ def _http_error(kind: str) -> HTTPException:
 )
 async def forward_notification(
     notification: NotificationSendRequest,
-    current_user: User = Depends(require_permission("services:write")),
+    current_user: User = Depends(require_permission("services.write")),
 ):
     try:
         result = await send_notification(
@@ -61,7 +61,7 @@ async def forward_notification(
 )
 async def read_notification(
     notification_id: int,
-    current_user: User = Depends(require_permission("services:read")),
+    current_user: User = Depends(require_permission("services.read")),
 ):
     try:
         result = await get_notification(notification_id)

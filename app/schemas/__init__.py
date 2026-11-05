@@ -1,4 +1,5 @@
 """Схемы запросов и ответов API."""
+from app.schemas.services import ServiceCreate, ServiceOut  # noqa: F401
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -22,24 +23,28 @@ class UserOut(ORM):
     permissions: list[str]
 
 
+class UserRegister(BaseModel):
+    """Саморегистрация (ЛР №19): новый пользователь получает роль viewer."""
+
+    username: str = Field(min_length=3, max_length=50, examples=["student01"])
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=120, examples=["student01@example.com"])
+    password: str = Field(min_length=8, max_length=128, examples=["Student#2026"])
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(examples=["student01"])
+    password: str = Field(examples=["Student#2026"])
+
+
+class RoleChange(BaseModel):
+    role: str = Field(description="Имя новой роли", examples=["operator"])
+
+
 class UserCreate(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=120)
     password: str = Field(min_length=8, max_length=128)
-    role: str = "user"
-
-
-class ServiceIn(BaseModel):
-    name: str = Field(min_length=2, max_length=100)
-    description: str = ""
-    status: str = Field(default="active", pattern="^(active|disabled)$")
-
-
-class ServiceOut(ORM):
-    id: int
-    name: str
-    description: str
-    status: str
+    role: str = "viewer"
 
 
 class FileOut(ORM):

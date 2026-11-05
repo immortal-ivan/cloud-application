@@ -41,4 +41,4 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ''
 Write-Host 'Готово. Активируйте окружение:  .venv\Scripts\Activate.ps1   затем:  python run.py' -ForegroundColor Green
-Write-Host 'Адрес: https://localhost:8443/docs   Пользователи: admin / Admin#2026,  student / Student#2026' -ForegroundColor Green
+Write-Host 'Адрес: https://localhost:8443/docs   Пользователи: admin / Admin#2026,  student01 (viewer), student02 (operator), student03 (administrator) / Student#2026' -ForegroundColor Green
