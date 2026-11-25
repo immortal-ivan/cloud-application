@@ -19,3 +19,6 @@ storage/*
 *.db
 
 .venv-check/
+backups/
+*.dump
+*.dump.sha256
