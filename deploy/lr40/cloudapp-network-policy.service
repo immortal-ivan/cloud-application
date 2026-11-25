@@ -1,0 +1,13 @@
+[Unit]
+Description=Cloud Application network policy (LR40)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/cloud-application/deploy/lr40/cloudapp-network-policy.sh /opt/cloud-application/deploy/lr40/network-policy.env
+
+[Install]
+WantedBy=multi-user.target
